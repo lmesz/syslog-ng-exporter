@@ -28,7 +28,7 @@ func getGivenTypeOfMessages(message_type string, lines []string) int {
 		line := lines[line]
 
 		if message_type_regexp.MatchString(line) {
-			current_value := strings.Trim(message_type_regexp.FindStringSubmatch(line)[1], "  ")
+			current_value := message_type_regexp.FindStringSubmatch(line)[1]
 			if message, err := strconv.Atoi(current_value); err == nil {
 				number_of_messages = number_of_messages + message
 			}
@@ -57,13 +57,9 @@ func dial() {
 	}
 	stat := strings.Split(string(buf), "\n")
 
-	number_of_processed := getProcessed(stat)
-	number_of_dropped := getDropped(stat)
-	number_of_queued := getQueued(stat)
-
-	fmt.Printf("Number of processed: %v\n", number_of_processed)
-	fmt.Printf("Number of dropped: %v\n", number_of_dropped)
-	fmt.Printf("Number of queued: %v\n", number_of_queued)
+	fmt.Printf("Number of processed: %v\n", getProcessed(stat))
+	fmt.Printf("Number of dropped: %v\n", getDropped(stat))
+	fmt.Printf("Number of queued: %v\n", getQueued(stat))
 }
 
 func main() {
