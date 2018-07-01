@@ -9,6 +9,34 @@ import (
 	"strings"
 )
 
+func getProcessed(lines []string) int {
+	return getGivenTypeOfMessages("processed", lines)
+}
+
+func getDropped(lines []string) int {
+	return getGivenTypeOfMessages("dropped", lines)
+}
+
+func getQueued(lines []string) int {
+	return getGivenTypeOfMessages("queued", lines)
+}
+
+func getGivenTypeOfMessages(message_type string, lines []string) int {
+	message_type_regexp, _ := regexp.Compile(fmt.Sprintf(`%v;(\d+)$`, message_type))
+	number_of_messages := 0
+	for line := range lines {
+		line := lines[line]
+
+		if message_type_regexp.MatchString(line) {
+			current_value := strings.Trim(message_type_regexp.FindStringSubmatch(line)[1], "  ")
+			if message, err := strconv.Atoi(current_value); err == nil {
+				number_of_messages = number_of_messages + message
+			}
+		}
+	}
+	return number_of_messages
+}
+
 func dial() {
 	conn, err := net.Dial("unix", "/var/lib/syslog-ng/syslog-ng.ctl")
 	if err != nil {
@@ -29,40 +57,13 @@ func dial() {
 	}
 	stat := strings.Split(string(buf), "\n")
 
-	processed, _ := regexp.Compile(`processed;(\d+)$`)
-	dropped, _ := regexp.Compile(`dropped;(\d+)$`)
-	queued, _ := regexp.Compile(`queued;(\d+)$`)
+	number_of_processed := getProcessed(stat)
+	number_of_dropped := getDropped(stat)
+	number_of_queued := getQueued(stat)
 
-	number_of_processed := 0
-	number_of_dropped := 0
-	number_of_queued:= 0
-	for line := range stat {
-		line := stat[line]
-
-		if processed.MatchString(line) {
-			current_value := strings.Trim(processed.FindStringSubmatch(line)[1], "  ")
-			if proceed, err := strconv.Atoi(current_value); err == nil {
-				number_of_processed = number_of_processed + proceed
-			}
-		}
-
-		if dropped.MatchString(line) {
-			current_value := strings.Trim(dropped.FindStringSubmatch(line)[1], "  ")
-			if dropped, err := strconv.Atoi(current_value); err == nil {
-				number_of_dropped = number_of_dropped + dropped
-			}
-        }
-
-        if queued.MatchString(line) {
-			current_value := strings.Trim(queued.FindStringSubmatch(line)[1], "  ")
-			if queued, err := strconv.Atoi(current_value); err == nil {
-				number_of_queued = number_of_queued + queued
-			}
-        }
-	}
-    fmt.Printf("Number of processed: %v\n", number_of_processed)
-    fmt.Printf("Number of dropped: %v\n", number_of_dropped)
-    fmt.Printf("Number of queued: %v\n", number_of_queued)
+	fmt.Printf("Number of processed: %v\n", number_of_processed)
+	fmt.Printf("Number of dropped: %v\n", number_of_dropped)
+	fmt.Printf("Number of queued: %v\n", number_of_queued)
 }
 
 func main() {
