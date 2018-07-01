@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"os"
 	"regexp"
@@ -37,7 +38,23 @@ func getGivenTypeOfMessages(message_type string, lines []string) int {
 	return number_of_messages
 }
 
-func dial() {
+type syslogngStats struct {
+	metric []typeDesc
+}
+
+func init() {
+	registerCollector("syslogngstats", defaultEnabled, NewSyslogNGStats)
+}
+
+func NewSyslogNGStats(Collector, error) {
+	return &syslogngStats{
+		metric: []typeDesc{
+			{prometheus.NewDesc("processed", "Total processed messages", nil, nil), prometheus.GaugeValue},
+		},
+	}, nil
+}
+
+func (s *syslogngStats) Update(ch chan<- prometheus.Metric) error {
 	conn, err := net.Dial("unix", "/var/lib/syslog-ng/syslog-ng.ctl")
 	if err != nil {
 		fmt.Printf("Failed to dial: %v\n", err)
@@ -57,11 +74,13 @@ func dial() {
 	}
 	stat := strings.Split(string(buf), "\n")
 
+	processed := getProcessed(stat)
+	ch <- c.metric[0].mustNewConstMetric(processed)
 	fmt.Printf("Number of processed: %v\n", getProcessed(stat))
 	fmt.Printf("Number of dropped: %v\n", getDropped(stat))
 	fmt.Printf("Number of queued: %v\n", getQueued(stat))
 }
 
 func main() {
-	dial()
+	collectSyslogNGStats()
 }
