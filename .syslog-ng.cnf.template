@@ -1,0 +1,2 @@
+socket = /tmp/go.sock
+sourceids = d_splunk,d_messages
