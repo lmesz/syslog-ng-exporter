@@ -77,7 +77,7 @@ type syslogNgCollector struct {
 func newSyslogNgCollector() *syslogNgCollector {
 	return &syslogNgCollector{
 		syslogNgMetric: prometheus.NewDesc("syslog_ng_metric",
-			"Shows whether a foo has occurred in our cluster",
+			"Shows syslo-ng destination statistics based on given config",
 			[]string{"source_id", "type"}, nil,
 		),
 	}
