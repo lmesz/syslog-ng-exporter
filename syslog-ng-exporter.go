@@ -5,7 +5,6 @@ import (
   "net"
   "path"
   "regexp"
-  "time"
   "strings"
   "strconv"
   "gopkg.in/alecthomas/kingpin.v2"
@@ -23,61 +22,46 @@ func stringInSlice(a string, list []string) bool {
     return false
 }
 
-func parseReceivedData(data string) {
+func parseReceivedData(data string) map[string]map[string]float64 {
+  var result = map[string]map[string]float64{}
+  for _, sid := range syslogngconfig.sourceIds {
+    result[sid] = map[string]float64{}
+  }
   for _, line := range strings.Split(data, "\n") {
     match := pattern.FindStringSubmatch(line)
     if (stringInSlice(match[2], syslogngconfig.sourceIds)) {
       if num, err := strconv.ParseFloat(match[6], 64); err == nil {
-        syslogngProcessedMessages.Add(num)
-        log.Print("Found ", match[2])
+        result[match[2]][match[5]] = num
       }
     }
   }
+  return result
 }
 
-func querySyslogNG() {
+func querySyslogNG() map[string]map[string]float64 {
+  var result = make(map[string]map[string]float64)
   c, err := net.Dial("unix", syslogngconfig.socket)
   if err != nil {
     log.Print("Dial error", err)
-    return
+    return result
   }
   defer c.Close()
-
   msg := "stats"
   _, err = c.Write([]byte(msg))
   if err != nil {
     log.Print("Write error:", err)
-    return
+    return result
   }
-
   buf := make([]byte, 10240)
-
   _, err = c.Read(buf[:])
   if err != nil {
-    return
+    return result
   }
-  parseReceivedData(string(buf))
-}
-
-func collectMetrics() {
-  go func() {
-    for {
-      querySyslogNG()
-      time.Sleep(2 * time.Second)
-    }
-  }()
+  result = parseReceivedData(string(buf))
+  return result
 }
 
 var (
-  //mysql_info_schema_table_version{create_options="row_format=DYNAMIC",engine="InnoDB",row_format="Dynamic",schema="sso",table="yubikeyservers",type="BASE TABLE"} 10
-  //mysql_info_schema_table_version{create_options="row_format=DYNAMIC",engine="InnoDB",row_format="Dynamic",schema="sso",table="AppFavIcons",type="BASE TABLE"} 10
-
-  //mysql_info_schema_table_rows{schema="CrashDumps",table="dumps"} 0
-  //mysql_info_schema_table_rows{schema="analytics",table="supportquestions"} 4776
-  //mysql_info_schema_table_rows{schema="checksum",table="checksum"} 15
-
-  syslogngProcessedMessages = prometheus.NewGauge(prometheus.GaugeOpts{
-    Name: "syslog_ng_processed_messages", Help: "Sum of all processed messages"})
   pattern = regexp.MustCompile(`(.*);(.*);(.*);(.*);(.*);(.*)`)
   config = kingpin.Flag(
     "config.syslog-ng",
@@ -85,6 +69,33 @@ var (
     ).Default(path.Join(path.Base(""), ".syslog-ng.cnf")).String()
     syslogngconfig = new(syslogNgConfig)
 )
+
+type syslogNgCollector struct {
+	syslogNgMetric *prometheus.Desc
+}
+
+func newSyslogNgCollector() *syslogNgCollector {
+	return &syslogNgCollector{
+		syslogNgMetric: prometheus.NewDesc("syslog_ng_metric",
+			"Shows whether a foo has occurred in our cluster",
+			[]string{"source_id", "type"}, nil,
+		),
+	}
+}
+
+func (collector *syslogNgCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- collector.syslogNgMetric
+}
+
+func (collector *syslogNgCollector) Collect(ch chan<- prometheus.Metric) {
+	var currentData = querySyslogNG()
+	for source := range currentData {
+		for stateType := range currentData[source] {
+			ch <- prometheus.MustNewConstMetric(collector.syslogNgMetric, prometheus.CounterValue, currentData[source][stateType], source, stateType)
+		}
+	}
+}
+
 
 type syslogNgConfig struct {
   socket string
@@ -117,6 +128,5 @@ func init() {
   kingpin.Parse()
 
   parseConfig(*config)
-  collectMetrics()
-  prometheus.MustRegister(syslogngProcessedMessages)
+  prometheus.MustRegister(newSyslogNgCollector())
 }
