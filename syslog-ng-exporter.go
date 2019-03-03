@@ -69,6 +69,13 @@ func collectMetrics() {
 }
 
 var (
+  //mysql_info_schema_table_version{create_options="row_format=DYNAMIC",engine="InnoDB",row_format="Dynamic",schema="sso",table="yubikeyservers",type="BASE TABLE"} 10
+  //mysql_info_schema_table_version{create_options="row_format=DYNAMIC",engine="InnoDB",row_format="Dynamic",schema="sso",table="AppFavIcons",type="BASE TABLE"} 10
+
+  //mysql_info_schema_table_rows{schema="CrashDumps",table="dumps"} 0
+  //mysql_info_schema_table_rows{schema="analytics",table="supportquestions"} 4776
+  //mysql_info_schema_table_rows{schema="checksum",table="checksum"} 15
+
   syslogngProcessedMessages = prometheus.NewGauge(prometheus.GaugeOpts{
     Name: "syslog_ng_processed_messages", Help: "Sum of all processed messages"})
   pattern = regexp.MustCompile(`(.*);(.*);(.*);(.*);(.*);(.*)`)
@@ -112,5 +119,4 @@ func init() {
   parseConfig(*config)
   collectMetrics()
   prometheus.MustRegister(syslogngProcessedMessages)
-  prometheus.MustRegister(temps)
 }
