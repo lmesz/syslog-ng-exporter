@@ -7,7 +7,7 @@ import logging
 import socket
 import sys
 from prometheus_client.core import GaugeMetricFamily, REGISTRY
-from prometheus_client import start_http_server, Histogram
+from prometheus_client import start_http_server
 
 
 class CustomCollector(object):
@@ -30,7 +30,6 @@ class CustomCollector(object):
             splitted_stat = stat.split(";")
             if (splitted_stat[0] in self.targets.split(",")):
                 stat_by_name["%s_%s" % (splitted_stat[1], splitted_stat[4])] = splitted_stat[-1]
-        print(stat_by_name)
         return stat_by_name
 
     def collect(self):
@@ -38,8 +37,9 @@ class CustomCollector(object):
         if stats:
             parsed_stats = self.parse_stats(stats)
             for parsed_stat_name, parsed_stat_value in parsed_stats.items():
-                g = GaugeMetricFamily(parsed_stat_name,
-                                      "Syslog-ng %s" % parsed_stat_name)
+                g = GaugeMetricFamily("syslog_ng_destination_metric",
+                                      "Syslog-ng %s" % parsed_stat_name,
+                                      labels=["destination_name"])
                 g.add_metric([parsed_stat_name], parsed_stat_value)
                 yield g
 
