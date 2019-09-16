@@ -37,9 +37,9 @@ class CustomCollector(object):
         if stats:
             parsed_stats = self.parse_stats(stats)
             for parsed_stat_name, parsed_stat_value in parsed_stats.items():
-                g = GaugeMetricFamily("syslog_ng_destination_metric",
+                g = GaugeMetricFamily("syslog_ng_metric",
                                       "Syslog-ng %s" % parsed_stat_name,
-                                      labels=["destination_name"])
+                                      labels=["name"])
                 g.add_metric([parsed_stat_name], parsed_stat_value)
                 yield g
 
